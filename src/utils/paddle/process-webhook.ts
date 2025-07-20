@@ -26,7 +26,7 @@ export class ProcessWebhook {
     try {
       const supabase = await createClient();
       const response = await supabase
-        .from('subscriptions')
+        .from('test_subscriptions')
         .upsert({
           subscription_id: eventData.data.id,
           subscription_status: eventData.data.status,
@@ -46,7 +46,7 @@ export class ProcessWebhook {
     try {
       const supabase = await createClient();
       const response = await supabase
-        .from('customers')
+        .from('test_customers')
         .upsert({
           customer_id: eventData.data.id,
           email: eventData.data.email,
