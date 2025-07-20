@@ -2,10 +2,10 @@ import { SubscriptionDetail } from '@/components/dashboard/subscriptions/compone
 import { NoSubscriptionView } from '@/components/dashboard/subscriptions/views/no-subscription-view';
 import { MultipleSubscriptionsView } from '@/components/dashboard/subscriptions/views/multiple-subscriptions-view';
 import { SubscriptionErrorView } from '@/components/dashboard/subscriptions/views/subscription-error-view';
-import { getSubscriptions } from '@/utils/paddle/get-subscriptions';
+import { getSubscriptionsFromDB } from '@/utils/paddle/get-subscriptions-from-db';
 
 export async function Subscriptions() {
-  const { data: subscriptions } = await getSubscriptions();
+  const { data: subscriptions } = await getSubscriptionsFromDB();
 
   if (subscriptions) {
     if (subscriptions.length === 0) {
