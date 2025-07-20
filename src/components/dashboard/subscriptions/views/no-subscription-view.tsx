@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export function NoSubscriptionView() {
+  console.log('🔴 [NO SUBSCRIPTION VIEW] Component rendered - no subscriptions found');
+
   return (
     <>
       <DashboardPageHeader pageTitle={'Subscriptions'} />

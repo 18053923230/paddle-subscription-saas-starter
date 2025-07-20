@@ -10,10 +10,22 @@ interface Props {
 }
 
 export function SubscriptionListView({ subscriptions }: Props) {
+  console.log('🟢 [SUBSCRIPTION LIST VIEW] Component rendered with subscriptions:', {
+    count: subscriptions.length,
+    subscriptions: subscriptions,
+    timestamp: new Date().toISOString(),
+  });
+
   // 按创建日期排序（最新的在前）
   const sortedSubscriptions = [...subscriptions].sort(
     (a, b) => new Date(b.startedAt || b.createdAt).getTime() - new Date(a.startedAt || a.createdAt).getTime(),
   );
+
+  console.log('🟢 [SUBSCRIPTION LIST VIEW] Sorted subscriptions:', {
+    count: sortedSubscriptions.length,
+    sortedSubscriptions: sortedSubscriptions,
+    timestamp: new Date().toISOString(),
+  });
 
   return (
     <>
