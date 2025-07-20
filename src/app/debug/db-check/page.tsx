@@ -34,7 +34,7 @@ export default function DbCheckPage() {
         // 获取当前用户
         const userResponse = await fetch('/api/debug/user');
         const userData = await userResponse.json();
-        setCurrentUser(userData);
+        setCurrentUser(userData.user); // 只设置 user 部分，不是整个对象
 
         console.log('🟠 [DB CHECK] Current user:', userData);
 
