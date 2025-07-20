@@ -4,7 +4,7 @@ const nextConfig = {
     domains: [
       'cdn.simpleicons.org',
       'localhost',
-      'paddle-billing.vercel.app',
+      // 'paddle-billing.vercel.app',
       'paddle-subscription-saas-starter.vercel.app',
     ],
   },
