@@ -34,23 +34,46 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
       timestamp: new Date().toISOString(),
     });
 
-    const { data: customerData } = await supabase
+    // 获取所有匹配的客户记录
+    const { data: allCustomerData, error: customerError } = await supabase
       .from('test_customers')
-      .select('customer_id')
+      .select('customer_id, created_at')
       .eq('email', user.data.user.email)
-      .single();
+      .order('created_at', { ascending: false }); // 按创建时间倒序，最新的在前
 
-    console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Customer lookup result:', {
-      hasCustomerData: !!customerData,
-      customerData: customerData,
+    console.log('🟡 [GET SUBSCRIPTIONS FROM DB] All customer lookup result:', {
+      hasCustomerData: !!allCustomerData,
+      customerCount: allCustomerData?.length || 0,
+      allCustomerData: allCustomerData,
+      customerError: customerError,
       searchedEmail: user.data.user.email,
       timestamp: new Date().toISOString(),
     });
 
-    if (!customerData?.customer_id) {
+    if (!allCustomerData || allCustomerData.length === 0) {
       console.log('🟡 [GET SUBSCRIPTIONS FROM DB] No customer_id found, returning empty data');
       return { data: [], hasMore: false, totalRecords: 0 };
     }
+
+    // 选择有订阅的客户记录，如果没有则选择最新的
+    let customerData = allCustomerData[0]; // 默认选择最新的
+
+    // 检查哪个客户记录有订阅
+    for (const customer of allCustomerData) {
+      const { data: subscriptionCheck } = await supabase
+        .from('test_subscriptions')
+        .select('subscription_id')
+        .eq('customer_id', customer.customer_id)
+        .limit(1);
+
+      if (subscriptionCheck && subscriptionCheck.length > 0) {
+        customerData = customer;
+        console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Found customer with subscriptions:', customer);
+        break;
+      }
+    }
+
+    console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Final selected customer:', customerData);
 
     // 获取该用户的订阅数据
     console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Fetching subscriptions for customer_id:', customerData.customer_id);
