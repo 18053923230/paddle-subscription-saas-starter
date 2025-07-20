@@ -5,7 +5,7 @@ create table
     email text not null,
     created_at timestamp with time zone not null default now(),
     updated_at timestamp with time zone not null default now(),
-    constraint customers_pkey primary key (customer_id)
+    constraint test_customers_pkey primary key (customer_id)
   ) tablespace pg_default;
 
 -- Create subscription table to store webhook events sent by Paddle
@@ -19,8 +19,8 @@ create table
     customer_id text not null,
     created_at timestamp with time zone not null default now(),
     updated_at timestamp with time zone not null default now(),
-    constraint subscriptions_pkey primary key (subscription_id),
-    constraint public_subscriptions_customer_id_fkey foreign key (customer_id) references test_customers (customer_id)
+    constraint test_subscriptions_pkey primary key (subscription_id),
+    constraint test_subscriptions_customer_id_fkey foreign key (customer_id) references test_customers (customer_id)
   ) tablespace pg_default;
 
 -- Grant access to authenticated users to read the customers table to get the customer_id based on the email
