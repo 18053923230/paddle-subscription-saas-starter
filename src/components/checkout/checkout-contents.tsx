@@ -23,6 +23,10 @@ export function CheckoutContents({ userEmail }: Props) {
   const [checkoutData, setCheckoutData] = useState<CheckoutEventsData | null>(null);
 
   const handleCheckoutEvents = (event: CheckoutEventsData) => {
+    console.log('🔵 [CHECKOUT EVENT] Event received:', {
+      eventData: event,
+      timestamp: new Date().toISOString(),
+    });
     setCheckoutData(event);
   };
 
