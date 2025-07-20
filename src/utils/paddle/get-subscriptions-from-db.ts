@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { SubscriptionResponse } from '@/lib/api.types';
-
+import { Subscription as PaddleSubscription } from '@paddle/paddle-node-sdk';
 export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
   try {
     const supabase = await createClient();
@@ -64,7 +64,7 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
             currencyCode: 'USD',
             startedAt: sub.created_at,
             nextBilledAt: sub.scheduled_change ? new Date(sub.scheduled_change).toISOString() : null,
-          }) as any,
+          }) as unknown as PaddleSubscription,
       ) || [];
 
     return {

@@ -1,6 +1,9 @@
 import { DashboardPageHeader } from '@/components/dashboard/layout/dashboard-page-header';
 import { DashboardLandingPage } from '@/components/dashboard/landing/dashboard-landing-page';
 
+// Force dynamic rendering for dashboard page
+export const dynamic = 'force-dynamic';
+
 export default function LandingPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-8">

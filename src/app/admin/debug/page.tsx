@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { User as PaddleUser } from '@supabase/supabase-js';
+import { Subscription as PaddleSubscription } from '@paddle/paddle-node-sdk';
 
 export default function DebugPage() {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<
+    { user: PaddleUser; subscriptions: PaddleSubscription[] } | { error: string } | null
+  >(null);
 
   const checkData = async () => {
     setLoading(true);
@@ -26,7 +30,7 @@ export default function DebugPage() {
         subscriptions: subscriptionData,
       });
     } catch (error) {
-      setData({ error: 'Failed to fetch debug data' });
+      setData({ error: error instanceof Error ? error.message : 'Failed to fetch debug data' });
     } finally {
       setLoading(false);
     }
@@ -43,7 +47,7 @@ export default function DebugPage() {
             {loading ? 'Loading...' : 'Check Data'}
           </Button>
 
-          {data && (
+          {data && 'user' in data && 'subscriptions' in data && (
             <div className="mt-4 space-y-4">
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-semibold mb-2">User Data:</h3>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
+  console.log('Debug user', request);
   try {
     const supabase = await createClient();
     const user = await supabase.auth.getUser();

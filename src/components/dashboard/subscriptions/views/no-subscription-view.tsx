@@ -23,7 +23,7 @@ export function NoSubscriptionView() {
           </CardContent>
           <CardFooter className={'p-0 pt-6'}>
             <Button asChild={true} size={'sm'} variant={'outline'} className={'text-sm rounded-sm border-border'}>
-              <Link href={'/'}>View all</Link>
+              <Link href={'/checkout/pri_01k0jeybsxvwczqa0xgkzykv4s'}>Get Started</Link>
             </Button>
           </CardFooter>
         </Card>
