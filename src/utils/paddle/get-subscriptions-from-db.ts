@@ -13,6 +13,7 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
     console.log('🟡 [GET SUBSCRIPTIONS FROM DB] User info:', {
       hasUser: !!user.data.user,
       userEmail: user.data.user?.email,
+      userId: user.data.user?.id,
       timestamp: new Date().toISOString(),
     });
 
@@ -24,6 +25,15 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
     // 先获取用户的 customer_id
     console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Looking up customer_id for email:', user.data.user.email);
 
+    // 先查看所有客户数据，看看有什么邮箱
+    const { data: allCustomers } = await supabase.from('test_customers').select('customer_id, email');
+
+    console.log('🟡 [GET SUBSCRIPTIONS FROM DB] All customers in DB:', {
+      allCustomers: allCustomers,
+      count: allCustomers?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
+
     const { data: customerData } = await supabase
       .from('test_customers')
       .select('customer_id')
@@ -33,6 +43,7 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
     console.log('🟡 [GET SUBSCRIPTIONS FROM DB] Customer lookup result:', {
       hasCustomerData: !!customerData,
       customerData: customerData,
+      searchedEmail: user.data.user.email,
       timestamp: new Date().toISOString(),
     });
 
