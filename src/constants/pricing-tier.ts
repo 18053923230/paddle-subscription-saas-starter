@@ -17,7 +17,7 @@ export const PricingTier: Tier[] = [
     description: 'Get started with AI-powered design tools for free. Limited features and exports.',
     features: ['1 workspace', 'Limited collaboration', 'Export to PNG and SVG'],
     featured: false,
-    priceId: { month: 'pri_01jm5569ncrb22rrsjp54xx3ye', year: 'pri_01jm54t65zq2mdcs79a7ww2mq3' },
+    priceId: { month: 'pri_01k0jeybsxvwczqa0xgkzykv4s', year: 'pri_01k0jeybsxvwczqa0xgkzykv4s' },
     currency: '£',
   },
   {
@@ -27,7 +27,7 @@ export const PricingTier: Tier[] = [
     description: 'Unlock premium templates and AI suggestions for better designs.',
     features: ['Integrations', 'Unlimited workspaces', 'Advanced editing tools', 'Everything in Starter'],
     featured: true,
-    priceId: { month: 'pri_01jm54x1xjbw8wcyvyf3gv1613', year: 'pri_01jm5556fngp7y9p77n3hpd5x9' },
+    priceId: { month: 'pri_01k0jeybsxvwczqa0xgkzykv4s', year: 'pri_01k0jeybsxvwczqa0xgkzykv4s' },
     currency: '£',
   },
   {
@@ -43,7 +43,7 @@ export const PricingTier: Tier[] = [
       'Everything in Pro',
     ],
     featured: false,
-    priceId: { month: 'pri_01jm54z45rhe2ess57kwk5gzcv', year: 'pri_01jm551he10tpq049aztv52kfw' },
+    priceId: { month: 'pri_01k0jexnr1e8ka94j1y6g876b4', year: 'pri_01k0jexnr1e8ka94j1y6g876b4' },
     currency: '£',
   },
 ];
