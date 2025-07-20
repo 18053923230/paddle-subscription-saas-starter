@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
+  console.log('🟡 [TEST QUERY] /api/debug/test-query called', request);
   console.log('🟡 [TEST QUERY] /api/debug/test-query called');
 
   try {
