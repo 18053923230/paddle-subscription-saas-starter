@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server-internal';
 
 export async function POST(request: NextRequest) {
+  console.log('Syncing users', request);
   try {
     const supabase = await createClient();
 
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
           const customerId = `cust_${user.id.replace(/-/g, '')}`;
 
           const { data: insertData, error: insertError } = await supabase
+
             .from('test_customers')
             .upsert(
               {
@@ -35,6 +37,8 @@ export async function POST(request: NextRequest) {
               },
             )
             .select();
+
+          console.log('insertData', insertData);
 
           if (insertError) {
             console.error(`Error inserting user ${user.email}:`, insertError);

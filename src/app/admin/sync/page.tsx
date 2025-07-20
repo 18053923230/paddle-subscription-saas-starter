@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SyncPage() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{ error?: string } | null>(null);
 
   const handleSync = async () => {
     setLoading(true);
@@ -23,7 +23,7 @@ export default function SyncPage() {
       const data = await response.json();
       setResult(data);
     } catch (error) {
-      setResult({ error: 'Failed to sync users' });
+      setResult({ error: error instanceof Error ? error.message : 'Failed to sync users' });
     } finally {
       setLoading(false);
     }
