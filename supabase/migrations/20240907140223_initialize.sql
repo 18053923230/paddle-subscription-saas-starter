@@ -23,6 +23,10 @@ create table
     constraint test_subscriptions_customer_id_fkey foreign key (customer_id) references test_customers (customer_id)
   ) tablespace pg_default;
 
+-- Add comments for documentation
+COMMENT ON COLUMN public.test_subscriptions.product_id IS 'Product ID from Paddle';
+COMMENT ON COLUMN public.test_subscriptions.price_id IS 'Price ID from Paddle';
+
 -- Grant access to authenticated users to read the customers table to get the customer_id based on the email
 create policy "Enable read access for authenticated users to test_customers" on "public"."test_customers" as PERMISSIVE for SELECT to authenticated using ( true );
 

@@ -7,6 +7,7 @@ import {
   SubscriptionUpdatedEvent,
 } from '@paddle/paddle-node-sdk';
 import { createClient } from '@/utils/supabase/server-internal';
+import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 export class ProcessWebhook {
   async processEvent(eventData: EventEntity) {
@@ -40,6 +41,10 @@ export class ProcessWebhook {
 
   private async updateSubscriptionData(eventData: SubscriptionCreatedEvent | SubscriptionUpdatedEvent) {
     console.log('🔴 [WRITE TO DB] Starting subscription data write to test_subscriptions table');
+
+    // 获取当前站点ID
+    const siteId = getCurrentSiteId();
+
     console.log('🔴 [WRITE TO DB] Event data to be written:', {
       subscription_id: eventData.data.id,
       subscription_status: eventData.data.status,
@@ -47,6 +52,7 @@ export class ProcessWebhook {
       product_id: eventData.data.items[0].price?.productId ?? '',
       scheduled_change: eventData.data.scheduledChange?.effectiveAt,
       customer_id: eventData.data.customerId,
+      tenant_id: siteId,
       fullEventData: eventData,
       timestamp: new Date().toISOString(),
     });
@@ -55,60 +61,65 @@ export class ProcessWebhook {
       const supabase = await createClient();
       console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
 
-      const response = await supabase
-        .from('test_subscriptions')
-        .upsert({
+      const response = await supabase.from('test_subscriptions').upsert(
+        {
           subscription_id: eventData.data.id,
           subscription_status: eventData.data.status,
           price_id: eventData.data.items[0].price?.id ?? '',
           product_id: eventData.data.items[0].price?.productId ?? '',
           scheduled_change: eventData.data.scheduledChange?.effectiveAt,
           customer_id: eventData.data.customerId,
-        })
-        .select();
+          tenant_id: siteId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'subscription_id' },
+      );
 
-      console.log('🔴 [WRITE TO DB] ✅ Successfully wrote to test_subscriptions table:', {
-        response: response,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('🔴 [WRITE TO DB] ❌ Error writing to test_subscriptions table:', {
-        error: e,
-        timestamp: new Date().toISOString(),
-      });
+      if (response.error) {
+        console.error('🔴 [WRITE TO DB] Error writing subscription data:', response.error);
+      } else {
+        console.log('🔴 [WRITE TO DB] Subscription data written successfully');
+      }
+    } catch (error) {
+      console.error('🔴 [WRITE TO DB] Exception writing subscription data:', error);
     }
   }
 
   private async updateCustomerData(eventData: CustomerCreatedEvent | CustomerUpdatedEvent) {
-    console.log('🟣 [WRITE TO DB] Starting customer data write to test_customers table');
-    console.log('🟣 [WRITE TO DB] Event data to be written:', {
+    console.log('🔴 [WRITE TO DB] Starting customer data write to test_customers table');
+
+    // 获取当前站点ID
+    const siteId = getCurrentSiteId();
+
+    console.log('🔴 [WRITE TO DB] Event data to be written:', {
       customer_id: eventData.data.id,
       email: eventData.data.email,
+      tenant_id: siteId,
       fullEventData: eventData,
       timestamp: new Date().toISOString(),
     });
 
     try {
       const supabase = await createClient();
-      console.log('🟣 [WRITE TO DB] Supabase client created, executing upsert...');
+      console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
 
-      const response = await supabase
-        .from('test_customers')
-        .upsert({
+      const response = await supabase.from('test_customers').upsert(
+        {
           customer_id: eventData.data.id,
           email: eventData.data.email,
-        })
-        .select();
+          tenant_id: siteId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'customer_id' },
+      );
 
-      console.log('🟣 [WRITE TO DB] ✅ Successfully wrote to test_customers table:', {
-        response: response,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('🟣 [WRITE TO DB] ❌ Error writing to test_customers table:', {
-        error: e,
-        timestamp: new Date().toISOString(),
-      });
+      if (response.error) {
+        console.error('🔴 [WRITE TO DB] Error writing customer data:', response.error);
+      } else {
+        console.log('🔴 [WRITE TO DB] Customer data written successfully');
+      }
+    } catch (error) {
+      console.error('🔴 [WRITE TO DB] Exception writing customer data:', error);
     }
   }
 }
