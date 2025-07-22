@@ -9,9 +9,8 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: 'AeroEdit',
-  description:
-    'AeroEdit is a powerful team design collaboration app and image editor. With plans for businesses of all sizes, streamline your workflow with real-time collaboration, advanced editing tools, and seamless project management.',
+  title: process.env.NEXT_PUBLIC_SITE_NAME || 'AeroEdit',
+  description: process.env.NEXT_PUBLIC_SITE_DESCRIPTION || 'AeroEdit is a platform for editing and creating documents.',
 };
 
 export default function RootLayout({
