@@ -16,10 +16,10 @@ export function Pricing({ country }: Props) {
   const { prices, loading } = usePaddlePrices(paddle, country);
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN && process.env.NEXT_PUBLIC_PADDLE_ENV) {
+    if (process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN && process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT) {
       initializePaddle({
         token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-        environment: process.env.NEXT_PUBLIC_PADDLE_ENV as Environments,
+        environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT as Environments,
       }).then((paddle) => {
         if (paddle) {
           setPaddle(paddle);

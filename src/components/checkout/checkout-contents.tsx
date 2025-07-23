@@ -31,10 +31,14 @@ export function CheckoutContents({ userEmail }: Props) {
   };
 
   useEffect(() => {
-    if (!paddle?.Initialized && process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN && process.env.NEXT_PUBLIC_PADDLE_ENV) {
+    if (
+      !paddle?.Initialized &&
+      process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN &&
+      process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT
+    ) {
       initializePaddle({
         token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-        environment: process.env.NEXT_PUBLIC_PADDLE_ENV as Environments,
+        environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT as Environments,
         eventCallback: (event) => {
           if (event.data && event.name) {
             handleCheckoutEvents(event.data);
