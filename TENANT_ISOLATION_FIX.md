@@ -10,6 +10,7 @@
 2. **数据库主键约束不支持租户隔离**：原有的主键约束只基于`customer_id`和`subscription_id`，没有包含`tenant_id`
 3. **API路由缺少租户设置**：某些API路由没有正确设置租户ID
 4. **认证回调路由没有设置租户ID**：用户登录时没有正确创建客户记录
+5. **密码登录和注册没有创建客户记录**：只有OAuth登录会触发认证回调，密码登录和注册直接跳转，没有创建客户记录
 
 ## 修复方案
 
@@ -59,13 +60,21 @@ const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant
 - `src/app/api/debug/site-status/route.ts`
 - `src/app/auth/callback/route.ts`
 
-### 5. 添加调试工具
+### 5. 修复认证Actions
+
+修复了登录和注册actions，确保所有认证方式都会创建客户记录：
+
+- `src/app/login/actions.ts` - 密码登录和匿名登录
+- `src/app/signup/actions.ts` - 用户注册
+
+### 6. 添加调试工具
 
 创建了新的调试API端点：
 
 - `/api/debug/tenant-test` - 测试租户隔离
 - `/api/debug/cleanup-duplicates` - 清理重复记录
 - `/api/debug/create-customer-manual` - 手动创建客户记录
+- `/api/debug/auth-status` - 检查认证状态
 
 创建了数据库函数：
 
@@ -96,30 +105,39 @@ NEXT_PUBLIC_SITE_NAME=Your New Site Name
 
 按顺序执行以下测试：
 
-1. **检查站点状态**：访问 `/api/debug/site-status`
-2. **测试租户隔离**：访问 `/api/debug/tenant-test`
-3. **清理重复记录**：POST到 `/api/debug/cleanup-duplicates`
-4. **手动创建客户**：POST到 `/api/debug/create-customer-manual`
+1. **检查认证状态**：访问 `/api/debug/auth-status`
+2. **检查站点状态**：访问 `/api/debug/site-status`
+3. **测试租户隔离**：访问 `/api/debug/tenant-test`
+4. **清理重复记录**：POST到 `/api/debug/cleanup-duplicates`
+5. **手动创建客户**：POST到 `/api/debug/create-customer-manual`
 
-### 4. 检查Webhook配置
+### 4. 测试认证流程
+
+1. **测试密码登录**：使用邮箱密码登录，检查是否创建客户记录
+2. **测试注册**：注册新用户，检查是否创建客户记录
+3. **测试匿名登录**：使用访客登录，检查是否创建客户记录
+
+### 5. 检查Webhook配置
 
 确保Paddle webhook URL指向正确的站点，并且webhook secret正确配置。
 
 ## 验证步骤
 
-1. **检查环境变量**：访问 `/api/debug/site-status` 确认站点ID正确
-2. **测试租户隔离**：访问 `/api/debug/tenant-test` 验证数据隔离
-3. **清理重复数据**：如果有重复记录，使用清理工具
-4. **测试用户登录**：在新站点登录，检查是否创建了正确的客户记录
-5. **测试订阅流程**：完成订阅流程，检查数据是否正确写入
+1. **检查认证状态**：访问 `/api/debug/auth-status` 确认用户认证和客户记录
+2. **检查环境变量**：访问 `/api/debug/site-status` 确认站点ID正确
+3. **测试租户隔离**：访问 `/api/debug/tenant-test` 验证数据隔离
+4. **清理重复数据**：如果有重复记录，使用清理工具
+5. **测试用户登录**：在新站点登录，检查是否创建了正确的客户记录
+6. **测试订阅流程**：完成订阅流程，检查数据是否正确写入
 
 ## 故障排除
 
 ### 如果用户记录没有创建
 
-1. 检查认证回调日志，查看是否有错误
-2. 使用 `/api/debug/create-customer-manual` 手动创建客户记录
-3. 检查是否有重复的email记录导致冲突
+1. 检查认证actions日志，查看是否有错误
+2. 使用 `/api/debug/auth-status` 检查认证状态
+3. 使用 `/api/debug/create-customer-manual` 手动创建客户记录
+4. 检查是否有重复的email记录导致冲突
 
 ### 如果数据仍然写入到错误的地方
 
@@ -133,6 +151,12 @@ NEXT_PUBLIC_SITE_NAME=Your New Site Name
 2. 检查唯一索引是否正确创建
 3. 验证upsert操作是否正确
 
+### 如果认证回调没有被触发
+
+1. 确认OAuth登录配置正确
+2. 检查重定向URL设置
+3. 验证Supabase认证配置
+
 ## 注意事项
 
 - 修复后，不同租户的相同customer_id不会再产生冲突
@@ -140,3 +164,4 @@ NEXT_PUBLIC_SITE_NAME=Your New Site Name
 - 确保所有环境变量在新站点上正确配置
 - 如果使用相同的Paddle账户，需要确保webhook URL指向正确的站点
 - 建议在应用修复前备份现有数据
+- 密码登录、注册和匿名登录现在都会自动创建客户记录
