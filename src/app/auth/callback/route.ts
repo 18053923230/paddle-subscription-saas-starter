@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-internal';
 import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 export async function GET(request: Request) {
@@ -17,32 +17,62 @@ export async function GET(request: Request) {
       const siteId = getCurrentSiteId();
       const userEmail = data.user.email;
 
+      console.log('🟡 [AUTH-CALLBACK] Processing login for user:', userEmail, 'in tenant:', siteId);
+
       if (userEmail) {
         try {
+          // 设置当前租户ID到数据库会话
+          const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+          if (tenantError) {
+            console.error('🟡 [AUTH-CALLBACK] Failed to set tenant:', tenantError);
+          } else {
+            console.log('🟡 [AUTH-CALLBACK] Successfully set tenant_id:', siteId);
+          }
+
           // 检查是否已存在客户记录
-          const { data: existingCustomer } = await supabase
+          const { data: existingCustomer, error: checkError } = await supabase
             .from('test_customers')
             .select('customer_id')
             .eq('email', userEmail)
-            .eq('tenant_id', siteId)
-            .single();
+            .eq('tenant_id', siteId);
 
-          if (!existingCustomer) {
+          console.log('🟡 [AUTH-CALLBACK] Existing customer check:', {
+            exists: !!existingCustomer,
+            count: existingCustomer?.length || 0,
+            error: checkError?.message,
+          });
+
+          if (!existingCustomer || existingCustomer.length === 0) {
             // 创建新的客户记录
-            const { error: insertError } = await supabase.from('test_customers').insert({
-              customer_id: `ctm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            const customerId = `ctm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            console.log('🟡 [AUTH-CALLBACK] Creating new customer record:', {
+              customerId,
               email: userEmail,
-              tenant_id: siteId,
+              tenantId: siteId,
             });
 
+            const { data: newCustomer, error: insertError } = await supabase
+              .from('test_customers')
+              .insert({
+                customer_id: customerId,
+                email: userEmail,
+                tenant_id: siteId,
+              })
+              .select()
+              .single();
+
             if (insertError) {
-              console.error('Failed to create customer record:', insertError);
+              console.error('🟡 [AUTH-CALLBACK] Failed to create customer record:', insertError);
             } else {
-              console.log('Customer record created successfully for:', userEmail, 'in tenant:', siteId);
+              console.log('🟡 [AUTH-CALLBACK] Customer record created successfully:', newCustomer);
             }
+          } else {
+            console.log('🟡 [AUTH-CALLBACK] Customer record already exists:', existingCustomer[0]);
           }
         } catch (error) {
-          console.error('Error in customer record creation:', error);
+          console.error('🟡 [AUTH-CALLBACK] Error in customer record creation:', error);
         }
       }
 

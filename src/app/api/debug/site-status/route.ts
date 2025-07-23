@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-internal';
 import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 export async function GET(request: NextRequest) {
@@ -7,6 +7,15 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const siteId = getCurrentSiteId();
+
+    // 设置当前租户ID到数据库会话
+    const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+    if (tenantError) {
+      console.error('🟡 [SITE-STATUS] Failed to set tenant:', tenantError);
+    } else {
+      console.log('🟡 [SITE-STATUS] Successfully set tenant_id:', siteId);
+    }
 
     // 获取当前用户
     const {
@@ -33,18 +42,34 @@ export async function GET(request: NextRequest) {
     let customerError = null;
 
     if (user?.email) {
-      const { data: customer, error: custErr } = await supabase
+      // 先查询所有匹配的记录，看看是否有重复
+      const { data: allMatchingCustomers, error: allCustErr } = await supabase
         .from('test_customers')
         .select('*')
         .eq('email', user.email)
-        .eq('tenant_id', siteId)
-        .single();
+        .eq('tenant_id', siteId);
 
-      customerRecord = customer;
-      customerError = custErr;
+      console.log(
+        '🟡 [SITE-STATUS] All matching customers for email:',
+        user.email,
+        'tenant:',
+        siteId,
+        'count:',
+        allMatchingCustomers?.length,
+        allCustErr,
+      );
+
+      if (allMatchingCustomers && allMatchingCustomers.length > 0) {
+        customerRecord = allMatchingCustomers[0]; // 取第一个记录
+        if (allMatchingCustomers.length > 1) {
+          customerError = `Multiple records found (${allMatchingCustomers.length}) for email: ${user.email}`;
+        }
+      } else {
+        customerError = 'No customer record found';
+      }
     }
 
-    // 检查租户隔离
+    // 检查租户隔离 - 使用service role key绕过RLS来查看所有数据
     const { data: allCustomers, error: allCustomersError } = await supabase
       .from('test_customers')
       .select('*')
@@ -54,6 +79,11 @@ export async function GET(request: NextRequest) {
       .from('test_subscriptions')
       .select('*')
       .eq('tenant_id', siteId);
+
+    // 检查是否有重复的email记录
+    const { data: duplicateEmails, error: duplicateError } = await supabase.rpc('check_duplicate_emails', {
+      tenant_id_param: siteId,
+    });
 
     return NextResponse.json({
       success: true,
@@ -77,13 +107,18 @@ export async function GET(request: NextRequest) {
       customerRecord: {
         exists: !!customerRecord,
         data: customerRecord,
-        error: customerError?.message,
+        error: customerError,
+        allMatchingRecords: user?.email
+          ? await supabase.from('test_customers').select('*').eq('email', user.email).eq('tenant_id', siteId)
+          : null,
       },
       tenantIsolation: {
         customersInTenant: allCustomers?.length || 0,
         subscriptionsInTenant: allSubscriptions?.length || 0,
         customersError: allCustomersError?.message,
         subscriptionsError: allSubscriptionsError?.message,
+        duplicateEmails: duplicateEmails || [],
+        duplicateError: duplicateError?.message,
       },
       recommendations: [],
     });
