@@ -45,6 +45,8 @@ export class ProcessWebhook {
     // 获取当前站点ID
     const siteId = getCurrentSiteId();
 
+    console.log('🔴 [WRITE TO DB] Current site ID:', siteId);
+
     console.log('🔴 [WRITE TO DB] Event data to be written:', {
       subscription_id: eventData.data.id,
       subscription_status: eventData.data.status,
@@ -60,6 +62,21 @@ export class ProcessWebhook {
     try {
       const supabase = await createClient();
       console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
+
+      // 首先检查客户记录是否存在
+      const { data: customerExists, error: customerCheckError } = await supabase
+        .from('test_customers')
+        .select('customer_id')
+        .eq('customer_id', eventData.data.customerId)
+        .eq('tenant_id', siteId)
+        .single();
+
+      console.log('🔴 [WRITE TO DB] Customer check result:', {
+        exists: !!customerExists,
+        error: customerCheckError?.message,
+        customerId: eventData.data.customerId,
+        tenantId: siteId,
+      });
 
       const response = await supabase.from('test_subscriptions').upsert(
         {
