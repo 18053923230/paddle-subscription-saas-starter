@@ -19,15 +19,16 @@ async function initializeTenant() {
 
     console.log('🟡 [INITIALIZE-TENANT] Initializing tenant:', siteId);
 
-    // 检查是否已经有记录
+    // 检查是否已经有记录 - 修复查询逻辑
     const { data: existingRecords, error: checkError } = await supabase
       .from('test_customers')
-      .select('count')
+      .select('*') // 改为select('*')而不是select('count')
       .eq('tenant_id', siteId);
 
     console.log('🟡 [INITIALIZE-TENANT] Existing records check:', {
       count: existingRecords?.length || 0,
       error: checkError?.message,
+      records: existingRecords,
     });
 
     if (existingRecords && existingRecords.length > 0) {
@@ -36,6 +37,7 @@ async function initializeTenant() {
         message: 'Tenant already has records, no initialization needed',
         siteId,
         existingRecords: existingRecords.length,
+        records: existingRecords,
       });
     }
 
@@ -93,6 +95,7 @@ async function initializeTenant() {
         success: !verifyError,
         count: verifyRecord?.length || 0,
         error: verifyError?.message,
+        records: verifyRecord,
       },
     });
   } catch (error) {
