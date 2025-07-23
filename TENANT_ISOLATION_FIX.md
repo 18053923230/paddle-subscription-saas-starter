@@ -11,6 +11,7 @@
 3. **API路由缺少租户设置**：某些API路由没有正确设置租户ID
 4. **认证回调路由没有设置租户ID**：用户登录时没有正确创建客户记录
 5. **密码登录和注册没有创建客户记录**：只有OAuth登录会触发认证回调，密码登录和注册直接跳转，没有创建客户记录
+6. **RLS策略阻止第一条记录创建**：新站点没有任何记录时，RLS策略可能阻止第一条记录的创建
 
 ## 修复方案
 
@@ -67,7 +68,15 @@ const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant
 - `src/app/login/actions.ts` - 密码登录和匿名登录
 - `src/app/signup/actions.ts` - 用户注册
 
-### 6. 添加调试工具
+### 6. 修复RLS策略
+
+创建了新的迁移文件 `supabase/migrations/20240907140230_fix_rls_for_empty_tenant.sql`：
+
+- 修复RLS策略，允许在没有租户设置时也能创建记录
+- 创建更宽松的策略，支持新站点的第一条记录创建
+- 添加安全的租户设置函数
+
+### 7. 添加调试工具
 
 创建了新的调试API端点：
 
@@ -75,12 +84,15 @@ const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant
 - `/api/debug/cleanup-duplicates` - 清理重复记录
 - `/api/debug/create-customer-manual` - 手动创建客户记录
 - `/api/debug/auth-status` - 检查认证状态
+- `/api/debug/initialize-tenant` - 初始化新租户（创建第一条记录）
 
 创建了数据库函数：
 
 - `check_duplicate_emails()` - 检查重复email
 - `cleanup_duplicate_customers()` - 清理重复记录
 - `get_tenant_stats()` - 获取租户统计信息
+- `safe_set_current_tenant()` - 安全设置租户ID
+- `get_current_tenant_safe()` - 安全获取当前租户ID
 
 ## 应用修复
 
@@ -101,36 +113,53 @@ NEXT_PUBLIC_SITE_NAME=Your New Site Name
 # ... 其他环境变量
 ```
 
-### 3. 测试和调试
+### 3. 初始化新租户
+
+**关键步骤**：对于新站点，必须先初始化租户：
+
+```bash
+# POST到初始化端点
+curl -X POST https://your-site.com/api/debug/initialize-tenant
+```
+
+### 4. 测试和调试
 
 按顺序执行以下测试：
 
-1. **检查认证状态**：访问 `/api/debug/auth-status`
-2. **检查站点状态**：访问 `/api/debug/site-status`
-3. **测试租户隔离**：访问 `/api/debug/tenant-test`
-4. **清理重复记录**：POST到 `/api/debug/cleanup-duplicates`
-5. **手动创建客户**：POST到 `/api/debug/create-customer-manual`
+1. **初始化租户**：POST到 `/api/debug/initialize-tenant`
+2. **检查认证状态**：访问 `/api/debug/auth-status`
+3. **检查站点状态**：访问 `/api/debug/site-status`
+4. **测试租户隔离**：访问 `/api/debug/tenant-test`
+5. **清理重复记录**：POST到 `/api/debug/cleanup-duplicates`
+6. **手动创建客户**：POST到 `/api/debug/create-customer-manual`
 
-### 4. 测试认证流程
+### 5. 测试认证流程
 
 1. **测试密码登录**：使用邮箱密码登录，检查是否创建客户记录
 2. **测试注册**：注册新用户，检查是否创建客户记录
 3. **测试匿名登录**：使用访客登录，检查是否创建客户记录
 
-### 5. 检查Webhook配置
+### 6. 检查Webhook配置
 
 确保Paddle webhook URL指向正确的站点，并且webhook secret正确配置。
 
 ## 验证步骤
 
-1. **检查认证状态**：访问 `/api/debug/auth-status` 确认用户认证和客户记录
-2. **检查环境变量**：访问 `/api/debug/site-status` 确认站点ID正确
-3. **测试租户隔离**：访问 `/api/debug/tenant-test` 验证数据隔离
-4. **清理重复数据**：如果有重复记录，使用清理工具
-5. **测试用户登录**：在新站点登录，检查是否创建了正确的客户记录
-6. **测试订阅流程**：完成订阅流程，检查数据是否正确写入
+1. **初始化租户**：POST到 `/api/debug/initialize-tenant` 创建第一条记录
+2. **检查认证状态**：访问 `/api/debug/auth-status` 确认用户认证和客户记录
+3. **检查环境变量**：访问 `/api/debug/site-status` 确认站点ID正确
+4. **测试租户隔离**：访问 `/api/debug/tenant-test` 验证数据隔离
+5. **清理重复数据**：如果有重复记录，使用清理工具
+6. **测试用户登录**：在新站点登录，检查是否创建了正确的客户记录
+7. **测试订阅流程**：完成订阅流程，检查数据是否正确写入
 
 ## 故障排除
+
+### 如果新站点无法创建任何记录
+
+1. **首先初始化租户**：POST到 `/api/debug/initialize-tenant`
+2. 检查RLS策略是否正确应用
+3. 确认数据库迁移是否成功应用
 
 ### 如果用户记录没有创建
 
@@ -159,9 +188,11 @@ NEXT_PUBLIC_SITE_NAME=Your New Site Name
 
 ## 注意事项
 
+- **新站点必须先初始化**：使用 `/api/debug/initialize-tenant` 创建第一条记录
 - 修复后，不同租户的相同customer_id不会再产生冲突
 - 每个租户的数据完全隔离，不会相互影响
 - 确保所有环境变量在新站点上正确配置
 - 如果使用相同的Paddle账户，需要确保webhook URL指向正确的站点
 - 建议在应用修复前备份现有数据
 - 密码登录、注册和匿名登录现在都会自动创建客户记录
+- RLS策略现在支持新站点的第一条记录创建
