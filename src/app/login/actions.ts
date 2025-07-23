@@ -86,14 +86,34 @@ export async function login(data: FormData) {
 
 export async function signInWithGithub() {
   const supabase = await createClient();
-  const { data } = await supabase.auth.signInWithOAuth({
+
+  // 获取当前站点的URL
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXTAUTH_URL ||
+    'http://localhost:3000';
+
+  console.log('🟡 [GITHUB-LOGIN] Starting GitHub OAuth with redirect URL:', `${siteUrl}/auth/callback`);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
     },
   });
+
+  if (error) {
+    console.error('🟡 [GITHUB-LOGIN] OAuth error:', error);
+    return { error: true };
+  }
+
   if (data.url) {
+    console.log('🟡 [GITHUB-LOGIN] Redirecting to OAuth URL');
     redirect(data.url);
+  } else {
+    console.error('🟡 [GITHUB-LOGIN] No OAuth URL received');
+    return { error: true };
   }
 }
 
