@@ -27,7 +27,7 @@ export const PricingTier: Tier[] = [
     description: 'Unlock premium templates and AI suggestions for better designs.',
     features: ['Integrations', 'Unlimited workspaces', 'Advanced editing tools', 'Everything in Starter'],
     featured: true,
-    priceId: { month: 'pri_01k0jeybsxvwczqa0xgkzykv4s', year: 'pri_01k0jeybsxvwczqa0xgkzykv4s' },
+    priceId: { month: 'pri_01k0s9f37e94c3sebxtr2ag1n7', year: 'pri_01k0s9f37e94c3sebxtr2ag1n7' },
     currency: '£',
   },
   {
@@ -43,7 +43,7 @@ export const PricingTier: Tier[] = [
       'Everything in Pro',
     ],
     featured: false,
-    priceId: { month: 'pri_01k0jexnr1e8ka94j1y6g876b4', year: 'pri_01k0jexnr1e8ka94j1y6g876b4' },
+    priceId: { month: 'pri_01k0s9gcw716aga30hzms6jsz3', year: 'pri_01k0s9gcw716aga30hzms6jsz3' },
     currency: '£',
   },
 ];
