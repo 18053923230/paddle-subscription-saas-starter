@@ -8,7 +8,7 @@ import { HeroSection } from '@/components/home/hero-section/hero-section';
 
 import { HomePageBackground } from '@/components/gradients/home-page-background';
 import { Footer } from '@/components/home/footer/footer';
-import { LandingPage } from './landing/landing-page';
+// import { LandingPage } from './landing/landing-page';
 
 export function HomePage() {
   const supabase = createClient();
@@ -19,7 +19,8 @@ export function HomePage() {
       <div>
         <HomePageBackground />
         <Header user={user} />
-        {user?.id ? <HeroSection /> : <LandingPage />}
+        <HeroSection />
+        {/* {user?.id ? <HeroSection /> : <LandingPage />} */}
         <Footer />
       </div>
     </>
