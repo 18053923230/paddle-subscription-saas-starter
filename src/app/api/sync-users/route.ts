@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server-internal';
+import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 export async function POST(request: NextRequest) {
   console.log('Syncing users', request);
   try {
     const supabase = await createClient();
+
+    // 获取当前站点ID并设置租户
+    const siteId = getCurrentSiteId();
+    console.log('🟡 [SYNC-USERS] Setting tenant_id:', siteId);
+
+    // 设置当前租户ID到数据库会话
+    const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+    if (tenantError) {
+      console.error('🟡 [SYNC-USERS] Failed to set tenant:', tenantError);
+      return NextResponse.json({ error: 'Failed to set tenant' }, { status: 500 });
+    }
 
     // 获取所有认证用户
     const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
@@ -25,15 +38,15 @@ export async function POST(request: NextRequest) {
           const customerId = `cust_${user.id.replace(/-/g, '')}`;
 
           const { data: insertData, error: insertError } = await supabase
-
             .from('test_customers')
             .upsert(
               {
                 customer_id: customerId,
                 email: user.email,
+                tenant_id: siteId, // 添加租户ID
               },
               {
-                onConflict: 'customer_id',
+                onConflict: 'customer_id,tenant_id', // 更新冲突检测字段
               },
             )
             .select();
@@ -44,7 +57,7 @@ export async function POST(request: NextRequest) {
             console.error(`Error inserting user ${user.email}:`, insertError);
             errors.push({ email: user.email, error: insertError.message });
           } else {
-            syncedUsers.push({ email: user.email, customer_id: customerId });
+            syncedUsers.push({ email: user.email, customer_id: customerId, tenant_id: siteId });
           }
         } catch (error) {
           console.error(`Error processing user ${user.email}:`, error);
@@ -58,7 +71,8 @@ export async function POST(request: NextRequest) {
       syncedUsers,
       totalUsers: users.users.length,
       errors,
-      message: `Successfully synced ${syncedUsers.length} users to test_customers table`,
+      tenant_id: siteId,
+      message: `Successfully synced ${syncedUsers.length} users to test_customers table for tenant: ${siteId}`,
     });
   } catch (error) {
     console.error('Sync error:', error);

@@ -89,7 +89,7 @@ export class ProcessWebhook {
           tenant_id: siteId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'subscription_id' },
+        { onConflict: 'subscription_id,tenant_id' }, // 更新冲突检测字段
       );
 
       if (response.error) {
@@ -127,7 +127,7 @@ export class ProcessWebhook {
           tenant_id: siteId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'customer_id' },
+        { onConflict: 'customer_id,tenant_id' }, // 更新冲突检测字段
       );
 
       if (response.error) {

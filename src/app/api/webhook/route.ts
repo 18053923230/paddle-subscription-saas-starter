@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { ProcessWebhook } from '@/utils/paddle/process-webhook';
 import { getPaddleInstance } from '@/utils/paddle/get-paddle-instance';
+import { createClient } from '@/utils/supabase/server-internal';
+import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 const webhookProcessor = new ProcessWebhook();
 
@@ -33,6 +35,21 @@ export async function POST(request: NextRequest) {
       });
 
       if (eventData) {
+        // 在webhook处理前设置租户ID
+        const supabase = await createClient();
+        const siteId = getCurrentSiteId();
+
+        console.log('🟡 [WEBHOOK] Setting tenant_id for webhook processing:', siteId);
+
+        // 设置当前租户ID到数据库会话
+        const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+        if (tenantError) {
+          console.error('🟡 [WEBHOOK] Failed to set tenant for webhook:', tenantError);
+        } else {
+          console.log('🟡 [WEBHOOK] Successfully set tenant_id for webhook:', siteId);
+        }
+
         console.log('🟡 [WEBHOOK] Processing event...');
         await webhookProcessor.processEvent(eventData);
         console.log('🟡 [WEBHOOK] Event processed successfully');
