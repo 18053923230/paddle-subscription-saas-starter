@@ -20,18 +20,12 @@ DROP POLICY IF EXISTS "Enable read access for authenticated users to test_subscr
 -- Create new RLS policies for tenant isolation
 CREATE POLICY "Users can only access their tenant's customers" ON public.test_customers
 FOR ALL USING (
-  tenant_id = COALESCE(
-    current_setting('app.current_tenant_id', true),
-    'default'
-  )
+  tenant_id = current_setting('app.current_tenant_id', true)
 );
 
 CREATE POLICY "Users can only access their tenant's subscriptions" ON public.test_subscriptions
 FOR ALL USING (
-  tenant_id = COALESCE(
-    current_setting('app.current_tenant_id', true),
-    'default'
-  )
+  tenant_id = current_setting('app.current_tenant_id', true)
 );
 
 -- Create function to set current tenant
@@ -46,9 +40,6 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION get_current_tenant()
 RETURNS text AS $$
 BEGIN
-  RETURN COALESCE(
-    current_setting('app.current_tenant_id', true),
-    'default'
-  );
+  RETURN current_setting('app.current_tenant_id', true);
 END;
 $$ LANGUAGE plpgsql; 

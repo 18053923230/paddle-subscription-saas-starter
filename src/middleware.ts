@@ -26,14 +26,25 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // 获取当前站点ID
-  const siteId = getCurrentSiteId();
+  try {
+    // 获取当前站点ID
+    const siteId = getCurrentSiteId();
+    console.log('🔵 [MIDDLEWARE] Setting tenant_id:', siteId);
 
-  // 设置站点ID到数据库会话（作为租户ID使用）
-  await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+    // 设置站点ID到数据库会话（作为租户ID使用）
+    const { error } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
 
-  // 刷新用户会话
-  await supabase.auth.getUser();
+    if (error) {
+      console.error('🔵 [MIDDLEWARE] Failed to set tenant:', error);
+    } else {
+      console.log('🔵 [MIDDLEWARE] Successfully set tenant_id:', siteId);
+    }
+
+    // 刷新用户会话
+    await supabase.auth.getUser();
+  } catch (error) {
+    console.error('🔵 [MIDDLEWARE] Error in middleware:', error);
+  }
 
   return supabaseResponse;
 }

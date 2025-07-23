@@ -12,12 +12,33 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
     const supabase = await createClient();
     const siteId = getCurrentSiteId();
 
-    console.log('🔵 [GET SUBSCRIPTIONS FROM DB] Getting subscriptions for site:', siteId);
+    // 获取当前用户的customer_id
+    const user = await supabase.auth.getUser();
+    let customerId = '';
+
+    if (user.data.user?.email) {
+      const { data: customerData } = await supabase
+        .from('test_customers')
+        .select('customer_id')
+        .eq('email', user.data.user.email)
+        .eq('tenant_id', siteId)
+        .single();
+
+      customerId = customerData?.customer_id || '';
+    }
+
+    console.log('🔵 [GET SUBSCRIPTIONS FROM DB] Getting subscriptions for site:', siteId, 'customer:', customerId);
+
+    if (!customerId) {
+      console.log('🔵 [GET SUBSCRIPTIONS FROM DB] No customer_id found for user');
+      return { data: [], hasMore: false, totalRecords: 0 };
+    }
 
     const { data: subscriptions, error } = await supabase
       .from('test_subscriptions')
       .select('*')
       .eq('tenant_id', siteId)
+      .eq('customer_id', customerId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -28,6 +49,7 @@ export async function getSubscriptionsFromDB(): Promise<SubscriptionResponse> {
     console.log('🔵 [GET SUBSCRIPTIONS FROM DB] Success:', {
       count: subscriptions?.length || 0,
       siteId,
+      customerId,
       subscriptions,
     });
 
