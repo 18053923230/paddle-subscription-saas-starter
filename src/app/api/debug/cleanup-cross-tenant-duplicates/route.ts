@@ -70,11 +70,13 @@ export async function POST() {
             customerId: toKeep.customer_id,
             createdAt: toKeep.created_at,
           },
-          delete: toDelete.map((sub: any) => ({
-            tenantId: sub.tenant_id,
-            customerId: sub.customer_id,
-            createdAt: sub.created_at,
-          })),
+          delete: toDelete.map(
+            (sub: { subscription_id: string; tenant_id: string; customer_id: string; created_at: string }) => ({
+              tenantId: sub.tenant_id,
+              customerId: sub.customer_id,
+              createdAt: sub.created_at,
+            }),
+          ),
           reason: 'Cross-tenant duplicate - keeping earliest created',
         });
 
@@ -142,7 +144,7 @@ export async function POST() {
               tenantId: toKeep.tenant_id,
               createdAt: toKeep.created_at,
             },
-            delete: toDelete.map((customer: any) => ({
+            delete: toDelete.map((customer: { customer_id: string; tenant_id: string; created_at: string }) => ({
               customerId: customer.customer_id,
               tenantId: customer.tenant_id,
               createdAt: customer.created_at,
