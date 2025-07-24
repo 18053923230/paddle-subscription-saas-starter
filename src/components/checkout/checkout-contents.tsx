@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckoutFormGradients } from '@/components/gradients/checkout-form-gradients';
 import { CheckoutEventsData } from '@paddle/paddle-js/types/checkout/events';
+import { setSubscriptionPending } from '@/utils/subscription-state';
 
 interface PathParams {
   priceId: string;
@@ -59,6 +60,13 @@ export function CheckoutContents({ userEmail }: Props) {
       }).then(async (paddle) => {
         if (paddle && priceId) {
           setPaddle(paddle);
+
+          // 在打开Paddle Checkout时设置订阅状态
+          if (userEmail) {
+            setSubscriptionPending(userEmail);
+            console.log('🔵 [CHECKOUT] Set subscription pending for:', userEmail);
+          }
+
           paddle.Checkout.open({
             ...(userEmail && { customer: { email: userEmail } }),
             items: [{ priceId: priceId, quantity: 1 }],

@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/utils/supabase/server-internal';
 import { getCurrentSiteId } from '@/utils/supabase/site-config';
 import { getPaddleInstance } from '@/utils/paddle/get-paddle-instance';
+import { hasSubscriptionPending, clearSubscriptionPending } from '@/utils/subscription-state';
 
 export class ProcessWebhook {
   async processEvent(eventData: EventEntity) {
@@ -34,10 +35,31 @@ export class ProcessWebhook {
 
       console.log('🟢 [PROCESS WEBHOOK] Event product ID:', productId);
 
-      // 这里可以添加产品验证逻辑
-      // 暂时处理所有事件，但记录详细信息
-      shouldProcess = true;
-      console.log('🟢 [PROCESS WEBHOOK] Will process subscription event for site:', currentSiteId);
+      // 获取客户邮箱
+      let customerEmail = null;
+      try {
+        const paddle = getPaddleInstance();
+        const customerData = await paddle.customers.get(subscriptionEvent.data.customerId);
+        customerEmail = customerData.email;
+        console.log('🟢 [PROCESS WEBHOOK] Customer email from Paddle:', customerEmail);
+      } catch (paddleError) {
+        console.error('🟢 [PROCESS WEBHOOK] Failed to get customer data from Paddle:', paddleError);
+      }
+
+      // 检查是否有主动订阅状态
+      if (customerEmail && hasSubscriptionPending(customerEmail)) {
+        shouldProcess = true;
+        console.log(
+          '🟢 [PROCESS WEBHOOK] Found active subscription state, will process event for site:',
+          currentSiteId,
+        );
+      } else {
+        console.log(
+          '🟢 [PROCESS WEBHOOK] No active subscription state found, ignoring webhook for email:',
+          customerEmail,
+        );
+        return; // 直接返回，不处理
+      }
     } else if (eventData.eventType === EventName.CustomerCreated || eventData.eventType === EventName.CustomerUpdated) {
       shouldProcess = true;
       console.log('🟢 [PROCESS WEBHOOK] Will process customer event for site:', currentSiteId);
@@ -211,6 +233,12 @@ export class ProcessWebhook {
           tenantId: siteId,
           status: eventData.data.status,
         });
+
+        // 写入成功后清除订阅状态
+        if (existingCustomer.email) {
+          clearSubscriptionPending(existingCustomer.email);
+          console.log('🔴 [WRITE TO DB] Cleared subscription state for:', existingCustomer.email);
+        }
       }
     } catch (error) {
       console.error('🔴 [WRITE TO DB] Exception writing subscription data:', error);
