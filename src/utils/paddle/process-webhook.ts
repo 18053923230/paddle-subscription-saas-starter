@@ -63,6 +63,15 @@ export class ProcessWebhook {
       const supabase = await createClient();
       console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
 
+      // 设置当前租户ID到数据库会话
+      const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+      if (tenantError) {
+        console.error('🔴 [WRITE TO DB] Failed to set tenant for subscription:', tenantError);
+      } else {
+        console.log('🔴 [WRITE TO DB] Successfully set tenant_id for subscription:', siteId);
+      }
+
       // 首先检查客户记录是否存在
       const { data: customerExists, error: customerCheckError } = await supabase
         .from('test_customers')
@@ -77,6 +86,28 @@ export class ProcessWebhook {
         customerId: eventData.data.customerId,
         tenantId: siteId,
       });
+
+      // 如果客户记录不存在，先创建客户记录
+      if (!customerExists) {
+        console.log('🔴 [WRITE TO DB] Customer record not found, creating customer record first');
+
+        // 这里需要从Paddle获取客户信息，或者使用默认值
+        const { data: newCustomer, error: customerInsertError } = await supabase
+          .from('test_customers')
+          .insert({
+            customer_id: eventData.data.customerId,
+            email: `customer_${eventData.data.customerId}@paddle.com`, // 临时邮箱
+            tenant_id: siteId,
+          })
+          .select()
+          .single();
+
+        if (customerInsertError) {
+          console.error('🔴 [WRITE TO DB] Failed to create customer record:', customerInsertError);
+        } else {
+          console.log('🔴 [WRITE TO DB] Customer record created successfully:', newCustomer);
+        }
+      }
 
       const response = await supabase.from('test_subscriptions').upsert(
         {
@@ -108,6 +139,8 @@ export class ProcessWebhook {
     // 获取当前站点ID
     const siteId = getCurrentSiteId();
 
+    console.log('🔴 [WRITE TO DB] Current site ID:', siteId);
+
     console.log('🔴 [WRITE TO DB] Event data to be written:', {
       customer_id: eventData.data.id,
       email: eventData.data.email,
@@ -119,6 +152,15 @@ export class ProcessWebhook {
     try {
       const supabase = await createClient();
       console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
+
+      // 设置当前租户ID到数据库会话
+      const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
+
+      if (tenantError) {
+        console.error('🔴 [WRITE TO DB] Failed to set tenant for customer:', tenantError);
+      } else {
+        console.log('🔴 [WRITE TO DB] Successfully set tenant_id for customer:', siteId);
+      }
 
       const response = await supabase.from('test_customers').upsert(
         {
