@@ -18,6 +18,36 @@ export class ProcessWebhook {
       timestamp: new Date().toISOString(),
     });
 
+    // 验证这个事件是否属于当前站点
+    const currentSiteId = getCurrentSiteId();
+    console.log('🟢 [PROCESS WEBHOOK] Current site ID:', currentSiteId);
+
+    // 检查事件是否包含产品信息
+    let shouldProcess = false;
+
+    if (
+      eventData.eventType === EventName.SubscriptionCreated ||
+      eventData.eventType === EventName.SubscriptionUpdated
+    ) {
+      const subscriptionEvent = eventData as SubscriptionCreatedEvent | SubscriptionUpdatedEvent;
+      const productId = subscriptionEvent.data.items[0]?.price?.productId;
+
+      console.log('🟢 [PROCESS WEBHOOK] Event product ID:', productId);
+
+      // 这里可以添加产品验证逻辑
+      // 暂时处理所有事件，但记录详细信息
+      shouldProcess = true;
+      console.log('🟢 [PROCESS WEBHOOK] Will process subscription event for site:', currentSiteId);
+    } else if (eventData.eventType === EventName.CustomerCreated || eventData.eventType === EventName.CustomerUpdated) {
+      shouldProcess = true;
+      console.log('🟢 [PROCESS WEBHOOK] Will process customer event for site:', currentSiteId);
+    }
+
+    if (!shouldProcess) {
+      console.log('🟢 [PROCESS WEBHOOK] Skipping event - not relevant for current site');
+      return;
+    }
+
     switch (eventData.eventType) {
       case EventName.SubscriptionCreated:
         console.log('🟢 [PROCESS WEBHOOK] Subscription Created event detected');
