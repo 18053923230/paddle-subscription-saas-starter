@@ -11,7 +11,9 @@ export async function GET() {
     const envCheck = {
       PADDLE_API_KEY: process.env.PADDLE_API_KEY ? '✅ Set' : '❌ Missing',
       PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET ? '✅ Set' : '❌ Missing',
-      PADDLE_NOTIFICATION_WEBHOOK_SECRET: process.env.PADDLE_NOTIFICATION_WEBHOOK_SECRET ? '✅ Set' : '❌ Missing',
+      PADDLE_NOTIFICATION_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET
+        ? '✅ Set (same as PADDLE_WEBHOOK_SECRET)'
+        : '❌ Missing',
       NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'Not set',
     };
 

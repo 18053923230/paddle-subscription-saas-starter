@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
   const signature = request.headers.get('paddle-signature') || '';
   const rawRequestBody = await request.text();
-  const privateKey = process.env['PADDLE_NOTIFICATION_WEBHOOK_SECRET'] || '';
+  const privateKey = process.env['PADDLE_WEBHOOK_SECRET'] || '';
 
   console.log('🟡 [WEBHOOK] Request details:', {
     hasSignature: !!signature,
