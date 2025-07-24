@@ -47,6 +47,7 @@ export class ProcessWebhook {
     const siteId = getCurrentSiteId();
 
     console.log('🔴 [WRITE TO DB] Current site ID:', siteId);
+    console.log('🔴 [WRITE TO DB] Processing subscription for tenant:', siteId);
 
     console.log('🔴 [WRITE TO DB] Event data to be written:', {
       subscription_id: eventData.data.id,
@@ -64,13 +65,23 @@ export class ProcessWebhook {
       const supabase = await createClient();
       console.log('🔴 [WRITE TO DB] Supabase client created, executing upsert...');
 
-      // 设置当前租户ID到数据库会话
+      // 强制设置当前租户ID到数据库会话
       const { error: tenantError } = await supabase.rpc('set_current_tenant', { tenant_id: siteId });
 
       if (tenantError) {
         console.error('🔴 [WRITE TO DB] Failed to set tenant for subscription:', tenantError);
+        return; // 如果无法设置租户，直接返回，不处理
       } else {
         console.log('🔴 [WRITE TO DB] Successfully set tenant_id for subscription:', siteId);
+      }
+
+      // 验证租户设置是否生效
+      const { data: currentTenant } = await supabase.rpc('get_current_tenant_safe');
+      console.log('🔴 [WRITE TO DB] Current tenant setting:', currentTenant);
+
+      if (currentTenant !== siteId) {
+        console.error('🔴 [WRITE TO DB] Tenant mismatch! Expected:', siteId, 'Got:', currentTenant);
+        return; // 租户不匹配，不处理
       }
 
       // 从Paddle获取客户信息以获取email
@@ -84,29 +95,49 @@ export class ProcessWebhook {
         console.error('🔴 [WRITE TO DB] Failed to get customer data from Paddle:', paddleError);
       }
 
-      // 通过email查找现有的客户记录
+      // 通过email查找现有的客户记录（严格限制在当前租户）
       let existingCustomer = null;
       if (customerEmail) {
+        console.log('🔴 [WRITE TO DB] Searching for customer by email:', customerEmail, 'in tenant:', siteId);
+
         const { data: customerByEmail, error: emailCheckError } = await supabase
           .from('test_customers')
-          .select('customer_id')
+          .select('customer_id, email, tenant_id')
           .eq('email', customerEmail)
           .eq('tenant_id', siteId)
           .single();
 
         if (emailCheckError) {
-          console.log('🔴 [WRITE TO DB] No customer found by email:', customerEmail);
+          console.log('🔴 [WRITE TO DB] No customer found by email:', customerEmail, 'in tenant:', siteId);
         } else {
           existingCustomer = customerByEmail;
           console.log('🔴 [WRITE TO DB] Found existing customer by email:', existingCustomer);
+
+          // 双重验证租户ID
+          if (existingCustomer.tenant_id !== siteId) {
+            console.error(
+              '🔴 [WRITE TO DB] Customer tenant mismatch! Expected:',
+              siteId,
+              'Got:',
+              existingCustomer.tenant_id,
+            );
+            return;
+          }
         }
       }
 
-      // 如果通过email没找到，再尝试通过Paddle customer_id查找
+      // 如果通过email没找到，再尝试通过Paddle customer_id查找（严格限制在当前租户）
       if (!existingCustomer) {
+        console.log(
+          '🔴 [WRITE TO DB] Searching for customer by Paddle ID:',
+          eventData.data.customerId,
+          'in tenant:',
+          siteId,
+        );
+
         const { data: customerById, error: idCheckError } = await supabase
           .from('test_customers')
-          .select('customer_id')
+          .select('customer_id, email, tenant_id')
           .eq('customer_id', eventData.data.customerId)
           .eq('tenant_id', siteId)
           .single();
@@ -116,9 +147,23 @@ export class ProcessWebhook {
           error: idCheckError?.message,
           customerId: eventData.data.customerId,
           tenantId: siteId,
+          foundCustomer: customerById,
         });
 
-        existingCustomer = customerById;
+        if (customerById) {
+          existingCustomer = customerById;
+
+          // 双重验证租户ID
+          if (existingCustomer.tenant_id !== siteId) {
+            console.error(
+              '🔴 [WRITE TO DB] Customer tenant mismatch! Expected:',
+              siteId,
+              'Got:',
+              existingCustomer.tenant_id,
+            );
+            return;
+          }
+        }
       }
 
       // 如果客户记录不存在，记录错误但不创建新记录
@@ -134,7 +179,27 @@ export class ProcessWebhook {
         return;
       }
 
+      // 最终验证：确保我们只处理当前租户的数据
+      console.log(
+        '🔴 [WRITE TO DB] Final validation - Customer tenant:',
+        existingCustomer.tenant_id,
+        'Current tenant:',
+        siteId,
+      );
+
+      if (existingCustomer.tenant_id !== siteId) {
+        console.error('🔴 [WRITE TO DB] Final tenant validation failed! Aborting subscription creation.');
+        return;
+      }
+
       // 使用现有客户的customer_id创建订阅记录
+      console.log(
+        '🔴 [WRITE TO DB] Creating subscription for customer:',
+        existingCustomer.customer_id,
+        'in tenant:',
+        siteId,
+      );
+
       const response = await supabase.from('test_subscriptions').upsert(
         {
           subscription_id: eventData.data.id,
@@ -152,7 +217,13 @@ export class ProcessWebhook {
       if (response.error) {
         console.error('🔴 [WRITE TO DB] Error writing subscription data:', response.error);
       } else {
-        console.log('🔴 [WRITE TO DB] Subscription data written successfully');
+        console.log('🔴 [WRITE TO DB] Subscription data written successfully for tenant:', siteId);
+        console.log('🔴 [WRITE TO DB] Subscription details:', {
+          subscriptionId: eventData.data.id,
+          customerId: existingCustomer.customer_id,
+          tenantId: siteId,
+          status: eventData.data.status,
+        });
       }
     } catch (error) {
       console.error('🔴 [WRITE TO DB] Exception writing subscription data:', error);
