@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server-internal';
 import { getCurrentSiteId } from '@/utils/supabase/site-config';
 
 export async function POST(request: Request) {
+  console.log('🟡 [TEST-WEBHOOK] Testing webhook processing', request.body);
   console.log('🟡 [TEST-WEBHOOK] Testing webhook processing');
 
   try {
