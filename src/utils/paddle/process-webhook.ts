@@ -8,6 +8,7 @@ import {
 } from '@paddle/paddle-node-sdk';
 import { createClient } from '@/utils/supabase/server-internal';
 import { getCurrentSiteId } from '@/utils/supabase/site-config';
+import { getPaddleInstance } from '@/utils/paddle/get-paddle-instance';
 
 export class ProcessWebhook {
   async processEvent(eventData: EventEntity) {
@@ -72,43 +73,68 @@ export class ProcessWebhook {
         console.log('🔴 [WRITE TO DB] Successfully set tenant_id for subscription:', siteId);
       }
 
-      // 首先检查客户记录是否存在
-      const { data: customerExists, error: customerCheckError } = await supabase
-        .from('test_customers')
-        .select('customer_id')
-        .eq('customer_id', eventData.data.customerId)
-        .eq('tenant_id', siteId)
-        .single();
+      // 从Paddle获取客户信息以获取email
+      let customerEmail = null;
+      try {
+        const paddle = getPaddleInstance();
+        const customerData = await paddle.customers.get(eventData.data.customerId);
+        customerEmail = customerData.email;
+        console.log('🔴 [WRITE TO DB] Retrieved customer email from Paddle:', customerEmail);
+      } catch (paddleError) {
+        console.error('🔴 [WRITE TO DB] Failed to get customer data from Paddle:', paddleError);
+      }
 
-      console.log('🔴 [WRITE TO DB] Customer check result:', {
-        exists: !!customerExists,
-        error: customerCheckError?.message,
-        customerId: eventData.data.customerId,
-        tenantId: siteId,
-      });
-
-      // 如果客户记录不存在，先创建客户记录
-      if (!customerExists) {
-        console.log('🔴 [WRITE TO DB] Customer record not found, creating customer record first');
-
-        // 这里需要从Paddle获取客户信息，或者使用默认值
-        const { data: newCustomer, error: customerInsertError } = await supabase
+      // 通过email查找现有的客户记录
+      let existingCustomer = null;
+      if (customerEmail) {
+        const { data: customerByEmail, error: emailCheckError } = await supabase
           .from('test_customers')
-          .insert({
-            customer_id: eventData.data.customerId,
-            email: `customer_${eventData.data.customerId}@paddle.com`, // 临时邮箱
-            tenant_id: siteId,
-          })
-          .select()
+          .select('customer_id')
+          .eq('email', customerEmail)
+          .eq('tenant_id', siteId)
           .single();
 
-        if (customerInsertError) {
-          console.error('🔴 [WRITE TO DB] Failed to create customer record:', customerInsertError);
+        if (emailCheckError) {
+          console.log('🔴 [WRITE TO DB] No customer found by email:', customerEmail);
         } else {
-          console.log('🔴 [WRITE TO DB] Customer record created successfully:', newCustomer);
+          existingCustomer = customerByEmail;
+          console.log('🔴 [WRITE TO DB] Found existing customer by email:', existingCustomer);
         }
       }
 
+      // 如果通过email没找到，再尝试通过Paddle customer_id查找
+      if (!existingCustomer) {
+        const { data: customerById, error: idCheckError } = await supabase
+          .from('test_customers')
+          .select('customer_id')
+          .eq('customer_id', eventData.data.customerId)
+          .eq('tenant_id', siteId)
+          .single();
+
+        console.log('🔴 [WRITE TO DB] Customer check by ID result:', {
+          exists: !!customerById,
+          error: idCheckError?.message,
+          customerId: eventData.data.customerId,
+          tenantId: siteId,
+        });
+
+        existingCustomer = customerById;
+      }
+
+      // 如果客户记录不存在，记录错误但不创建新记录
+      if (!existingCustomer) {
+        console.error(
+          '🔴 [WRITE TO DB] No existing customer record found for subscription. Customer should be created during login first.',
+        );
+        console.error('🔴 [WRITE TO DB] Paddle customer ID:', eventData.data.customerId);
+        console.error('🔴 [WRITE TO DB] Customer email:', customerEmail);
+        console.error('🔴 [WRITE TO DB] Tenant ID:', siteId);
+
+        // 不创建订阅记录，因为客户记录不存在
+        return;
+      }
+
+      // 使用现有客户的customer_id创建订阅记录
       const response = await supabase.from('test_subscriptions').upsert(
         {
           subscription_id: eventData.data.id,
@@ -116,7 +142,7 @@ export class ProcessWebhook {
           price_id: eventData.data.items[0].price?.id ?? '',
           product_id: eventData.data.items[0].price?.productId ?? '',
           scheduled_change: eventData.data.scheduledChange?.effectiveAt,
-          customer_id: eventData.data.customerId,
+          customer_id: existingCustomer.customer_id, // 使用现有客户的ID
           tenant_id: siteId,
           updated_at: new Date().toISOString(),
         },

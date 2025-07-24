@@ -11,9 +11,7 @@ export async function GET() {
     const envCheck = {
       PADDLE_API_KEY: process.env.PADDLE_API_KEY ? '✅ Set' : '❌ Missing',
       PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET ? '✅ Set' : '❌ Missing',
-      PADDLE_NOTIFICATION_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET
-        ? '✅ Set (same as PADDLE_WEBHOOK_SECRET)'
-        : '❌ Missing',
+
       NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'Not set',
     };
 
@@ -39,7 +37,7 @@ export async function GET() {
       recommendations: [
         !process.env.PADDLE_API_KEY ? 'PADDLE_API_KEY not set' : null,
         !process.env.PADDLE_WEBHOOK_SECRET ? 'PADDLE_WEBHOOK_SECRET not set' : null,
-        !process.env.PADDLE_NOTIFICATION_WEBHOOK_SECRET ? 'PADDLE_NOTIFICATION_WEBHOOK_SECRET not set' : null,
+
         'Ensure webhook URL is configured in Paddle Dashboard',
         'Test webhook by creating a subscription',
       ].filter(Boolean),
