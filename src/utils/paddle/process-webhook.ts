@@ -95,10 +95,56 @@ export class ProcessWebhook {
         console.error('🔴 [WRITE TO DB] Failed to get customer data from Paddle:', paddleError);
       }
 
-      // 通过email查找现有的客户记录（严格限制在当前租户）
+      // 优先通过Paddle customer_id查找现有的客户记录（这是最可靠的方式）
       let existingCustomer = null;
-      if (customerEmail) {
-        console.log('🔴 [WRITE TO DB] Searching for customer by email:', customerEmail, 'in tenant:', siteId);
+
+      console.log(
+        '🔴 [WRITE TO DB] Searching for customer by Paddle ID:',
+        eventData.data.customerId,
+        'in tenant:',
+        siteId,
+      );
+
+      const { data: customerById, error: idCheckError } = await supabase
+        .from('test_customers')
+        .select('customer_id, email, tenant_id')
+        .eq('customer_id', eventData.data.customerId)
+        .eq('tenant_id', siteId)
+        .single();
+
+      console.log('🔴 [WRITE TO DB] Customer check by ID result:', {
+        exists: !!customerById,
+        error: idCheckError?.message,
+        customerId: eventData.data.customerId,
+        tenantId: siteId,
+        foundCustomer: customerById,
+      });
+
+      if (customerById) {
+        existingCustomer = customerById;
+
+        // 验证租户ID
+        if (existingCustomer.tenant_id !== siteId) {
+          console.error(
+            '🔴 [WRITE TO DB] Customer tenant mismatch! Expected:',
+            siteId,
+            'Got:',
+            existingCustomer.tenant_id,
+          );
+          return;
+        }
+
+        console.log('🔴 [WRITE TO DB] Found existing customer by Paddle ID:', existingCustomer);
+      }
+
+      // 如果通过Paddle customer_id没找到，再尝试通过email查找（作为备用方案）
+      if (!existingCustomer && customerEmail) {
+        console.log(
+          '🔴 [WRITE TO DB] No customer found by Paddle ID, trying email:',
+          customerEmail,
+          'in tenant:',
+          siteId,
+        );
 
         const { data: customerByEmail, error: emailCheckError } = await supabase
           .from('test_customers')
@@ -108,12 +154,12 @@ export class ProcessWebhook {
           .single();
 
         if (emailCheckError) {
-          console.log('🔴 [WRITE TO DB] No customer found by email:', customerEmail, 'in tenant:', siteId);
+          console.log('🔴 [WRITE TO DB] No customer found by email either:', customerEmail, 'in tenant:', siteId);
         } else {
           existingCustomer = customerByEmail;
-          console.log('🔴 [WRITE TO DB] Found existing customer by email:', existingCustomer);
+          console.log('🔴 [WRITE TO DB] Found existing customer by email (backup method):', existingCustomer);
 
-          // 双重验证租户ID
+          // 验证租户ID
           if (existingCustomer.tenant_id !== siteId) {
             console.error(
               '🔴 [WRITE TO DB] Customer tenant mismatch! Expected:',
@@ -126,57 +172,31 @@ export class ProcessWebhook {
         }
       }
 
-      // 如果通过email没找到，再尝试通过Paddle customer_id查找（严格限制在当前租户）
+      // 如果客户记录不存在，创建新的客户记录（使用Paddle的customer_id）
       if (!existingCustomer) {
-        console.log(
-          '🔴 [WRITE TO DB] Searching for customer by Paddle ID:',
-          eventData.data.customerId,
-          'in tenant:',
-          siteId,
-        );
+        console.log('🔴 [WRITE TO DB] No existing customer record found, creating new customer with Paddle ID');
+        console.log('🔴 [WRITE TO DB] Paddle customer ID:', eventData.data.customerId);
+        console.log('🔴 [WRITE TO DB] Customer email:', customerEmail);
+        console.log('🔴 [WRITE TO DB] Tenant ID:', siteId);
 
-        const { data: customerById, error: idCheckError } = await supabase
+        // 创建新的客户记录，使用Paddle的customer_id
+        const { data: newCustomer, error: customerInsertError } = await supabase
           .from('test_customers')
-          .select('customer_id, email, tenant_id')
-          .eq('customer_id', eventData.data.customerId)
-          .eq('tenant_id', siteId)
+          .insert({
+            customer_id: eventData.data.customerId, // 使用Paddle的customer_id
+            email: customerEmail || `customer_${eventData.data.customerId}@paddle.com`,
+            tenant_id: siteId,
+          })
+          .select()
           .single();
 
-        console.log('🔴 [WRITE TO DB] Customer check by ID result:', {
-          exists: !!customerById,
-          error: idCheckError?.message,
-          customerId: eventData.data.customerId,
-          tenantId: siteId,
-          foundCustomer: customerById,
-        });
-
-        if (customerById) {
-          existingCustomer = customerById;
-
-          // 双重验证租户ID
-          if (existingCustomer.tenant_id !== siteId) {
-            console.error(
-              '🔴 [WRITE TO DB] Customer tenant mismatch! Expected:',
-              siteId,
-              'Got:',
-              existingCustomer.tenant_id,
-            );
-            return;
-          }
+        if (customerInsertError) {
+          console.error('🔴 [WRITE TO DB] Failed to create customer record:', customerInsertError);
+          return; // 如果无法创建客户记录，不创建订阅记录
+        } else {
+          existingCustomer = newCustomer;
+          console.log('🔴 [WRITE TO DB] Customer record created successfully with Paddle ID:', newCustomer);
         }
-      }
-
-      // 如果客户记录不存在，记录错误但不创建新记录
-      if (!existingCustomer) {
-        console.error(
-          '🔴 [WRITE TO DB] No existing customer record found for subscription. Customer should be created during login first.',
-        );
-        console.error('🔴 [WRITE TO DB] Paddle customer ID:', eventData.data.customerId);
-        console.error('🔴 [WRITE TO DB] Customer email:', customerEmail);
-        console.error('🔴 [WRITE TO DB] Tenant ID:', siteId);
-
-        // 不创建订阅记录，因为客户记录不存在
-        return;
       }
 
       // 最终验证：确保我们只处理当前租户的数据
